@@ -1,11 +1,15 @@
+create database scrobble_proxy;
+
+use scrobble_proxy;
+
 create table users (
-    id INTEGER primary key autoincrement,
+    id INTEGER primary key auto_increment,
     name TEXT NOT NULL,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 create table sessions (
-    id TEXT primary key NOT NULL,
+    id VARCHAR(2000) primary key NOT NULL,
     user INTEGER NOT NULL,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(user) REFERENCES users(id)

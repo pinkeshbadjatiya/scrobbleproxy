@@ -10,7 +10,7 @@ from collections import defaultdict
 
 from mockdata import User, Session, Token
 
-staticuser = "jonty"
+staticuser = "armalcolite"
 
 @app.route('/api/auth/', methods=['GET'])
 def api_auth():

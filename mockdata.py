@@ -1,13 +1,37 @@
 import os
 import binascii
-import sqlite3
+import mysql.connector
+
+
+class db_connect:
+
+        def __init__(self):
+                self.__con = None
+                self.__cur = None
+
+        def __enter__(self):
+                self.__con = mysql.connector.connect(
+                                database = 'scrobble_proxy',
+                                user = "root",
+                                password = "123456789"
+                                )
+                self.__cur = self.__con.cursor()
+                return self.__cur
+
+        def __exit__(self, exception_type, exception_value, traceback):
+                self.__con.commit()
+                if self.__cur is not None:
+                        self.__cur.close()
+                if self.__con is not None:
+                        self.__con.close()
+
+
 
 class User(object):
     @staticmethod
     def load_by_name(name):
-        with sqlite3.connect('database.db') as conn:
-            c = conn.cursor()
-            c.execute('SELECT * FROM users WHERE name=?', (name,))
+        with db_connect() as c:
+            c.execute('SELECT * FROM users WHERE name="%s"' % (name))
             row = c.fetchone()
             if row:
                 return User(row)
@@ -15,9 +39,8 @@ class User(object):
 
     @staticmethod
     def load_by_id(id):
-        with sqlite3.connect('database.db') as conn:
-            c = conn.cursor()
-            c.execute('SELECT * FROM users WHERE id=?', (id,))
+        with db_connect() as c:
+            c.execute('SELECT * FROM users WHERE id=%s' % (id))
             row = c.fetchone()
             if row:
                 return User(row)
@@ -30,17 +53,15 @@ class User(object):
         self.timestamp = timestamp
 
     def scrobble(self, timestamp, artist, track, album, albumArtist):
-        with sqlite3.connect('database.db') as conn:
-            c = conn.cursor()
-            c.execute('INSERT INTO scrobbles (user, timestamp, artist, track, album, albumArtist) values (?,?,?,?,?,?);', (self.id, timestamp, artist, track, album, albumArtist,))
+        with db_connect() as cn:
+            c.execute('INSERT INTO scrobbles (user, timestamp, artist, track, album, albumArtist) values ("%s","%s","%s","%s","%s","%s");' % (self.id, timestamp, artist, track, album, albumArtist))
         
 
 class Session(object):
     @staticmethod
     def load(session):
-        with sqlite3.connect('database.db') as conn:
-            c = conn.cursor()
-            c.execute('SELECT * FROM sessions WHERE id=?', (session,))
+        with db_connect() as c:
+            c.execute('SELECT * FROM sessions WHERE id="%s"' % (session))
             row = c.fetchone()
             if row:
                 return Session(row)
@@ -49,9 +70,8 @@ class Session(object):
     @staticmethod
     def create(user):
         session = binascii.b2a_hex(os.urandom(20))
-        with sqlite3.connect('database.db') as conn:
-            c = conn.cursor()
-            c.execute('INSERT INTO sessions (id, user) VALUES (?,?);', (session, user.id,))
+        with db_connect() as c:
+            c.execute('INSERT INTO sessions (id, user) VALUES ("%s","%s");' % (session, user.id))
         return Session.load(session)
 
     def __init__(self, row):
@@ -64,9 +84,8 @@ class Session(object):
 class Token(object):
     @staticmethod
     def load(token):
-        with sqlite3.connect('database.db') as conn:
-            c = conn.cursor()
-            c.execute('SELECT * FROM tokens WHERE token=?', (token,))
+        with db_connect() as c:
+            c.execute('SELECT * FROM tokens WHERE token="%s"' % (token))
             row = c.fetchone()
             if row:
                 return Token(row)
@@ -75,9 +94,8 @@ class Token(object):
     @staticmethod
     def generate():
         token = binascii.b2a_hex(os.urandom(20))
-        with sqlite3.connect('database.db') as conn:
-            c = conn.cursor()
-            c.execute('INSERT INTO tokens (token) VALUES (?);', (token,))
+        with db_connect() as c:
+            c.execute('INSERT INTO tokens (token) VALUES ("%s");' % (token))
         return Token.load(token)
 
     def __init__(self, row):
@@ -89,11 +107,9 @@ class Token(object):
             self.user = User.load_by_id(user)
 
     def validate(self, user):
-        with sqlite3.connect('database.db') as conn:
-            c = conn.cursor()
-            c.execute('UPDATE tokens SET user = ? WHERE token=?', (user, self.token,))
+        with db_connect() as c:
+            c.execute('UPDATE tokens SET user = "%s" WHERE token="%s"' % (user, self.token))
 
     def consume(self):
-        with sqlite3.connect('database.db') as conn:
-            c = conn.cursor()
-            c.execute('DELETE FROM tokens WHERE token=?', (self.token,))
+        with db_connect() as c:
+            c.execute('DELETE FROM tokens WHERE token="%s"' % (self.token))
